@@ -1,40 +1,32 @@
-#
-# http://www.gnu.org/software/make/manual/make.html
-#
-CC:=gcc
-INCLUDES:=$(shell pkg-config --cflags libavformat libavcodec libswresample libswscale libavutil sdl)
-CFLAGS:=-Wall -ggdb
-LDFLAGS:=$(shell pkg-config --libs libavformat libavcodec libswresample libswscale libavutil sdl) -lm
-EXE:=tutorial01.out tutorial02.out tutorial03.out tutorial04.out\
-	tutorial05.out tutorial06.out tutorial07.out
+# use pkg-config for getting CFLAGS and LDLIBS
+FFMPEG_LIBS=    libavdevice                        \
+                libavformat                        \
+                libavfilter                        \
+                libavcodec                         \
+                libswresample                      \
+                libswscale                         \
+                libavutil                          \
 
-#
-# This is here to prevent Make from deleting secondary files.
-#
-.SECONDARY:
-	
+CFLAGS += -Wall -g
+CFLAGS := $(shell pkg-config --cflags $(FFMPEG_LIBS)) $(CFLAGS)
+LDLIBS := $(shell pkg-config --libs $(FFMPEG_LIBS)) $(LDLIBS)
+LDLIBS +=-lX11 -lm  -lvdpau -lva -lva-drm -lva-x11
+EXAMPLES=       my_tutorial01                    \
 
-#
-# $< is the first dependency in the dependency list
-# $@ is the target name
-#
-all: dirs $(addprefix bin/, $(EXE)) tags
+OBJS=$(addsuffix .o,$(EXAMPLES))
 
-dirs:
-	mkdir -p obj
-	mkdir -p bin
+# the following examples make explicit use of the math library
+avcodec:           LDLIBS += -lm
+encode_audio:      LDLIBS += -lm
+muxing:            LDLIBS += -lm
+resampling_audio:  LDLIBS += -lm
 
-tags: *.c
-	ctags *.c
+.phony: all clean-test clean
 
-bin/%.out: obj/%.o
-	$(CC) $(CFLAGS) $< $(LDFLAGS) -o $@
+all: $(OBJS) $(EXAMPLES)
 
-obj/%.o : %.c
-	$(CC) $(CFLAGS) $< $(INCLUDES) -c -o $@
+clean-test:
+	$(RM) test*.pgm test.h264 test.mp2 test.sw test.mpg
 
-clean:
-	rm -f obj/*
-	rm -f bin/*
-	rm -f tags
-
+clean: clean-test
+	$(RM) $(EXAMPLES) $(OBJS)
