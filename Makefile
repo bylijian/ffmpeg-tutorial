@@ -6,12 +6,14 @@ FFMPEG_LIBS=    libavdevice                        \
                 libswresample                      \
                 libswscale                         \
                 libavutil                          \
+                sdl2                               \
 
 CFLAGS += -Wall -g
 CFLAGS := $(shell pkg-config --cflags $(FFMPEG_LIBS)) $(CFLAGS)
 LDLIBS := $(shell pkg-config --libs $(FFMPEG_LIBS)) $(LDLIBS)
 LDLIBS +=-lX11 -lm  -lvdpau -lva -lva-drm -lva-x11
 EXAMPLES=       my_tutorial01                    \
+				my_tutorial02                    \
 
 OBJS=$(addsuffix .o,$(EXAMPLES))
 
