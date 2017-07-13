@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
     return -1; // Codec not found
   }
   
-  avcodec_parameters_to_context(pCodecCtx,pFormatCtx->streams[i]->codecpar);
+  avcodec_parameters_to_context(pCodecCtx,pFormatCtx->streams[videoStream]->codecpar);
 
   // Open codec
   if(avcodec_open2(pCodecCtx, pCodec, &optionsDict)<0)
@@ -169,8 +169,6 @@ int main(int argc, char *argv[]) {
         NULL,
         NULL
     );
-  sws_ctx = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt, 
-		pCodecCtx->width, pCodecCtx->height, AV_PIX_FMT_YUV420P, SWS_BICUBIC, NULL, NULL, NULL); 
 
   // Read frames and save first five frames to disk
   i=0;
