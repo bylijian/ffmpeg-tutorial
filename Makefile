@@ -14,6 +14,7 @@ LDLIBS := $(shell pkg-config --libs $(FFMPEG_LIBS)) $(LDLIBS)
 LDLIBS +=-lX11 -lm  -lvdpau -lva -lva-drm -lva-x11
 EXAMPLES=       my_tutorial01                    \
 				my_tutorial02                    \
+				my_tutorial03                    \
 
 OBJS=$(addsuffix .o,$(EXAMPLES))
 
