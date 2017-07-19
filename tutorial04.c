@@ -64,6 +64,7 @@ typedef struct VideoState {
 
   AVFormatContext *pFormatCtx;
   int             videoStream, audioStream;
+
   AVStream        *audio_st;
   PacketQueue     audioq;
   uint8_t         audio_buf[(MAX_AUDIO_FRAME_SIZE * 3) / 2];
@@ -73,11 +74,13 @@ typedef struct VideoState {
   AVPacket        audio_pkt;
   uint8_t         *audio_pkt_data;
   int             audio_pkt_size;
+
   AVStream        *video_st;
   PacketQueue     videoq;
 
   VideoPicture    pictq[VIDEO_PICTURE_QUEUE_SIZE];
   int             pictq_size, pictq_rindex, pictq_windex;
+
   SDL_mutex       *pictq_mutex;
   SDL_cond        *pictq_cond;
   
@@ -97,11 +100,13 @@ SDL_Surface     *screen;
    can be global in case we need it. */
 VideoState *global_video_state;
 
+/* Init a packet_queue */
 void packet_queue_init(PacketQueue *q) {
   memset(q, 0, sizeof(PacketQueue));
   q->mutex = SDL_CreateMutex();
   q->cond = SDL_CreateCond();
 }
+
 int packet_queue_put(PacketQueue *q, AVPacket *pkt) {
 
   AVPacketList *pkt1;
@@ -112,7 +117,7 @@ int packet_queue_put(PacketQueue *q, AVPacket *pkt) {
   if (!pkt1)
     return -1;
   pkt1->pkt = *pkt;
-  pkt1->next = NULL;
+  pkt1->next = NULL;//construct a AVPacketList
   
   SDL_LockMutex(q->mutex);
 
@@ -122,7 +127,7 @@ int packet_queue_put(PacketQueue *q, AVPacket *pkt) {
     q->last_pkt->next = pkt1;
   q->last_pkt = pkt1;
   q->nb_packets++;
-  q->size += pkt1->pkt.size;
+  q->size += pkt1->pkt.size;//Add a AVPacketList at the end of queue 
   SDL_CondSignal(q->cond);
   
   SDL_UnlockMutex(q->mutex);
@@ -150,20 +155,21 @@ static int packet_queue_get(PacketQueue *q, AVPacket *pkt, int block)
       q->nb_packets--;
       q->size -= pkt1->pkt.size;
       *pkt = pkt1->pkt;
-      av_free(pkt1);
+      av_free(pkt1);//Just free AVPacketList ,not the AVPacket in it??
       ret = 1;
       break;
     } else if (!block) {
       ret = 0;
       break;
     } else {
-      SDL_CondWait(q->cond, q->mutex);
+      SDL_CondWait(q->cond, q->mutex);//wait put a AVPacket into queue 
     }
   }
   SDL_UnlockMutex(q->mutex);
   return ret;
 }
 
+//decode audio AVPacket and save raw audio data into is->audio_buf
 int audio_decode_frame(VideoState *is) {
   int len1, data_size = 0;
   AVPacket *pkt = &is->audio_pkt;
@@ -173,9 +179,9 @@ int audio_decode_frame(VideoState *is) {
       int got_frame = 0;
       len1 = avcodec_decode_audio4(is->audio_st->codec, &is->audio_frame, &got_frame, pkt);
       if(len1 < 0) {
-	/* if error, skip frame */
-	is->audio_pkt_size = 0;
-	break;
+				/* if error, skip frame */
+				is->audio_pkt_size = 0;
+				break;
       }
       if (got_frame)
       {
@@ -187,18 +193,19 @@ int audio_decode_frame(VideoState *is) {
                 is->audio_frame.nb_samples,
                 is->audio_st->codec->sample_fmt,
                 1
-            );
-          memcpy(is->audio_buf, is->audio_frame.data[0], data_size);
+            );//Get the required buffer size for the given audio parameters
+          memcpy(is->audio_buf, is->audio_frame.data[0], data_size);//Copy raw audio data into is->audio_buf
       }
       is->audio_pkt_data += len1;
       is->audio_pkt_size -= len1;
       if(data_size <= 0) {
-	/* No data yet, get more frames */
-	continue;
+			/* No data yet, get more frames */
+			continue;
       }
       /* We have data, return it and come back for more later */
       return data_size;
     }
+
     if(pkt->data)
       av_free_packet(pkt);
 
@@ -214,6 +221,7 @@ int audio_decode_frame(VideoState *is) {
   }
 }
 
+//Callback for SDL to save len Size data in stream used
 void audio_callback(void *userdata, Uint8 *stream, int len) {
 
   VideoState *is = (VideoState *)userdata;
@@ -224,24 +232,25 @@ void audio_callback(void *userdata, Uint8 *stream, int len) {
       /* We have already sent all our data; get more */
       audio_size = audio_decode_frame(is);
       if(audio_size < 0) {
-	/* If error, output silence */
-	is->audio_buf_size = 1024;
-	memset(is->audio_buf, 0, is->audio_buf_size);
+ 				/* If error, output silence */
+				is->audio_buf_size = 1024;
+				memset(is->audio_buf, 0, is->audio_buf_size);
       } else {
-	is->audio_buf_size = audio_size;
+				is->audio_buf_size = audio_size;
       }
       is->audio_buf_index = 0;
     }
     len1 = is->audio_buf_size - is->audio_buf_index;
     if(len1 > len)
       len1 = len;
-    memcpy(stream, (uint8_t *)is->audio_buf + is->audio_buf_index, len1);
+    memcpy(stream, (uint8_t *)is->audio_buf + is->audio_buf_index, len1);//cop audio data into stream for SDL used
     len -= len1;
     stream += len1;
     is->audio_buf_index += len1;
   }
 }
 
+//send a FF_REFRESH_EVENT EVENT afer interval ms time
 static Uint32 sdl_refresh_timer_cb(Uint32 interval, void *opaque) {
   SDL_Event event;
   event.type = FF_REFRESH_EVENT;
@@ -255,6 +264,7 @@ static void schedule_refresh(VideoState *is, int delay) {
   SDL_AddTimer(delay, sdl_refresh_timer_cb, is);
 }
 
+//Display by SDL
 void video_display(VideoState *is) {
 
   SDL_Rect rect;
@@ -293,6 +303,7 @@ void video_display(VideoState *is) {
   }
 }
 
+//
 void video_refresh_timer(void *userdata) {
 
   VideoState *is = (VideoState *)userdata;
@@ -329,7 +340,8 @@ void video_refresh_timer(void *userdata) {
     schedule_refresh(is, 100);
   }
 }
-      
+
+//      
 void alloc_picture(void *userdata) {
 
   VideoState *is = (VideoState *)userdata;
@@ -436,6 +448,7 @@ int queue_picture(VideoState *is, AVFrame *pFrame) {
   return 0;
 }
 
+//Decode video AVPacket and queue the picture
 int video_thread(void *arg) {
   VideoState *is = (VideoState *)arg;
   AVPacket pkt1, *packet = &pkt1;
@@ -465,6 +478,7 @@ int video_thread(void *arg) {
   return 0;
 }
 
+//open the stream_index stream ,and prepare something
 int stream_component_open(VideoState *is, int stream_index) {
 
   AVFormatContext *pFormatCtx = is->pFormatCtx;
@@ -542,6 +556,7 @@ int decode_interrupt_cb(void *opaque) {
   return (global_video_state && global_video_state->quit);
 }
 
+// decode_thread read AVPacket and put them into queue for loop
 int decode_thread(void *arg) {
 
   VideoState *is = (VideoState *)arg;
@@ -649,6 +664,7 @@ int decode_thread(void *arg) {
   return 0;
 }
 
+
 int main(int argc, char *argv[]) {
 
   SDL_Event       event;
@@ -685,8 +701,10 @@ int main(int argc, char *argv[]) {
   is->pictq_mutex = SDL_CreateMutex();
   is->pictq_cond = SDL_CreateCond();
 
+  //send refresh event afer 40ms
   schedule_refresh(is, 40);
 
+  //create a thread to read AVPacket
   is->parse_tid = SDL_CreateThread(decode_thread, is);
   if(!is->parse_tid) {
     av_free(is);

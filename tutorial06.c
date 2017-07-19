@@ -132,6 +132,7 @@ void packet_queue_init(PacketQueue *q) {
   q->mutex = SDL_CreateMutex();
   q->cond = SDL_CreateCond();
 }
+
 int packet_queue_put(PacketQueue *q, AVPacket *pkt) {
 
   AVPacketList *pkt1;
@@ -158,6 +159,7 @@ int packet_queue_put(PacketQueue *q, AVPacket *pkt) {
   SDL_UnlockMutex(q->mutex);
   return 0;
 }
+
 static int packet_queue_get(PacketQueue *q, AVPacket *pkt, int block)
 {
   AVPacketList *pkt1;
@@ -442,7 +444,7 @@ void video_refresh_timer(void *userdata) {
   
   if(is->video_st) {
     if(is->pictq_size == 0) {
-      schedule_refresh(is, 1);
+      schedule_refresh(is, 1);//not have picture to display 
     } else {
       vp = &is->pictq[is->pictq_rindex];
 
@@ -451,8 +453,8 @@ void video_refresh_timer(void *userdata) {
 
       delay = vp->pts - is->frame_last_pts; /* the pts from last time */
       if(delay <= 0 || delay >= 1.0) {
-	/* if incorrect delay, use previous one */
-	delay = is->frame_last_delay;
+				/* if incorrect delay, use previous one */
+				delay = is->frame_last_delay;
       }
       /* save for next time */
       is->frame_last_delay = delay;
@@ -460,27 +462,27 @@ void video_refresh_timer(void *userdata) {
 
       /* update delay to sync to audio if not master source */
       if(is->av_sync_type != AV_SYNC_VIDEO_MASTER) {
-	ref_clock = get_master_clock(is);
-	diff = vp->pts - ref_clock;
+				ref_clock = get_master_clock(is);
+				diff = vp->pts - ref_clock;
 	
-	/* Skip or repeat the frame. Take delay into account
-	   FFPlay still doesn't "know if this is the best guess." */
-	sync_threshold = (delay > AV_SYNC_THRESHOLD) ? delay : AV_SYNC_THRESHOLD;
-	if(fabs(diff) < AV_NOSYNC_THRESHOLD) {
-	  if(diff <= -sync_threshold) {
-	    delay = 0;
-	  } else if(diff >= sync_threshold) {
-	    delay = 2 * delay;
-	  }
-	}
+				/* Skip or repeat the frame. Take delay into account
+	  		 FFPlay still doesn't "know if this is the best guess." */
+				sync_threshold = (delay > AV_SYNC_THRESHOLD) ? delay : AV_SYNC_THRESHOLD;
+				if(fabs(diff) < AV_NOSYNC_THRESHOLD) {
+			 	 if(diff <= -sync_threshold) {
+			    	delay = 0;//video is too slow ,fast it
+			  	} else if(diff >= sync_threshold) {
+			    	delay = 2 * delay;//video is too fast ,slow it
+	 	 			}
+				}
       }
 
       is->frame_timer += delay;
       /* computer the REAL delay */
       actual_delay = is->frame_timer - (av_gettime() / 1000000.0);
       if(actual_delay < 0.010) {
-	/* Really it should skip the picture instead */
-	actual_delay = 0.010;
+	  	  /* Really it should skip the picture instead */
+	     	actual_delay = 0.010;
       }
       schedule_refresh(is, (int)(actual_delay * 1000 + 0.5));
 
@@ -489,7 +491,7 @@ void video_refresh_timer(void *userdata) {
       
       /* update queue for next picture! */
       if(++is->pictq_rindex == VIDEO_PICTURE_QUEUE_SIZE) {
-	is->pictq_rindex = 0;
+				is->pictq_rindex = 0;
       }
       SDL_LockMutex(is->pictq_mutex);
       is->pictq_size--;
@@ -684,7 +686,7 @@ int video_thread(void *arg) {
     if(frameFinished) {
       pts = synchronize_video(is, pFrame, pts);
       if(queue_picture(is, pFrame, pts) < 0) {
-	break;
+				break;
       }
     }
     av_free_packet(packet);

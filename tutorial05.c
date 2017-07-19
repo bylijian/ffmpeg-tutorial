@@ -360,18 +360,18 @@ void video_refresh_timer(void *userdata) {
 	 FFPlay still doesn't "know if this is the best guess." */
       sync_threshold = (delay > AV_SYNC_THRESHOLD) ? delay : AV_SYNC_THRESHOLD;
       if(fabs(diff) < AV_NOSYNC_THRESHOLD) {
-	if(diff <= -sync_threshold) {
-	  delay = 0;
-	} else if(diff >= sync_threshold) {
-	  delay = 2 * delay;
-	}
+				if(diff <= -sync_threshold) {
+	 			 delay = 0;
+				} else if(diff >= sync_threshold) {
+	 				 delay = 2 * delay;
+			}
       }
       is->frame_timer += delay;
       /* computer the REAL delay */
       actual_delay = is->frame_timer - (av_gettime() / 1000000.0);
       if(actual_delay < 0.010) {
-	/* Really it should skip the picture instead */
-	actual_delay = 0.010;
+				/* Really it should skip the picture instead */
+  			actual_delay = 0.010;
       }
       schedule_refresh(is, (int)(actual_delay * 1000 + 0.5));
       /* show the picture! */
@@ -379,7 +379,7 @@ void video_refresh_timer(void *userdata) {
       
       /* update queue for next picture! */
       if(++is->pictq_rindex == VIDEO_PICTURE_QUEUE_SIZE) {
-	is->pictq_rindex = 0;
+				is->pictq_rindex = 0;
       }
       SDL_LockMutex(is->pictq_mutex);
       is->pictq_size--;
